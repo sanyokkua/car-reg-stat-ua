@@ -1,0 +1,14 @@
+version: '2'
+
+services:
+  car_reg_stat_ua_db:
+    image: postgres
+    restart: always
+    ports:
+      - '5402:5432'
+    environment:
+      POSTGRES_DB: car_reg_stat_ua_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: welcome
+    volumes:
+      - ./tmp/car_reg_stat_ua:/var/lib/postgresql/data

@@ -23,3 +23,6 @@
 hs_err_pid*
 .idea
 /.venv/
+backend/tmp/*
+/backend/database/target
+*.iml

@@ -1,20 +1,32 @@
 package main
 
 import (
-	"data_retriever/app"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+    "data_retriever/app"
+    "github.com/rs/zerolog"
+    "github.com/rs/zerolog/log"
+    "os"
 )
 
+const CLEAN_RUN = "clean"
+
 func main() {
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+    log.Info().Msg("App Started")
+    zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 
-	log.Info().Msg("App Started")
+    args := os.Args[1:]
+    var cleanRun bool
+    for _, arg := range args {
+        if arg == CLEAN_RUN {
+            cleanRun = true
+            break
+        }
+    }
 
-	err := app.GetData(false)
-	if err != nil {
-		panic(err)
-	}
+    err := app.ProcessRegistrationData(cleanRun)
+    if err != nil {
+        log.Error().Err(err).Msg("Application failed to process Registration Data")
+        panic(err)
+    }
 
-	log.Info().Msg("App Finished")
+    log.Info().Msg("App Finished")
 }

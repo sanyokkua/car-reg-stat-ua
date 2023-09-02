@@ -2,6 +2,7 @@ package app
 
 import (
 	"data_retriever/constants"
+	dbmodel "data_retriever/db/models"
 	"data_retriever/models"
 	"data_retriever/utils"
 	"fmt"
@@ -10,7 +11,7 @@ import (
 	"path/filepath"
 )
 
-func GetData(cleanRun bool) error {
+func ProcessRegistrationData(cleanRun bool) error {
 	defer func() {
 		// Global handler for panic
 		if r := recover(); r != nil {
@@ -32,10 +33,20 @@ func GetData(cleanRun bool) error {
 	downloadedArchivesPaths := step6DownloadCsvArchives(folderArch, urlOfCsvArchives)
 	extractedCsvFiles := step7ExtractAllDownloadedArchives(downloadedArchivesPaths, folderCsv)
 	allRegistrationRecords := step8ParseAllCsvFilesAndGetRecords(extractedCsvFiles)
+	uniqueDataHolder := step9GetRegUniqueData(allRegistrationRecords)
 
-	for _, record := range allRegistrationRecords {
-		log.Debug().Msg(fmt.Sprintf("%+v", record))
-	}
+	log.Debug().Msgf("Number of departments: %d", len(uniqueDataHolder.MapDepartment))
+	log.Debug().Msgf("Number of Operations: %d", len(uniqueDataHolder.MapOperation))
+	log.Debug().Msgf("Number of Brands: %d", len(uniqueDataHolder.MapBrand))
+	log.Debug().Msgf("Number of unique Models: %d", len(uniqueDataHolder.MapModel))
+	log.Debug().Msgf("Number of Body Types: %d", len(uniqueDataHolder.MapBodyType))
+	log.Debug().Msgf("Number of Fuel Types: %d", len(uniqueDataHolder.MapFuelType))
+	log.Debug().Msgf("Number of Colors: %d", len(uniqueDataHolder.MapColor))
+	log.Debug().Msgf("Number of Kinds: %d", len(uniqueDataHolder.MapKind))
+
+	//for _, record := range allRegistrationRecords {
+	//    log.Debug().Msg(fmt.Sprintf("%+v", record))
+	//}
 	//err = utils.DeleteFolder(folderTemp)
 	//if err != nil {
 	//    return err
@@ -133,7 +144,8 @@ func step7ExtractAllDownloadedArchives(downloadedArchives []string, folderCsv st
 func step8ParseAllCsvFilesAndGetRecords(extractedCsvFiles []string) []models.CsvRecord {
 	log.Debug().Msgf("Step 8. Registration records will be parsed from all extracted CSV files")
 	allRegistrationRecords := make([]models.CsvRecord, 0, 1_000_000)
-	for _, filePath := range extractedCsvFiles {
+	for i, filePath := range extractedCsvFiles {
+		log.Debug().Msgf("Processing file number: %d", i)
 		records, err := utils.ParseRegistrationsCsvToRecordsArray(filePath)
 		if err != nil {
 			panic(err)
@@ -145,4 +157,72 @@ func step8ParseAllCsvFilesAndGetRecords(extractedCsvFiles []string) []models.Csv
 		}
 	}
 	return allRegistrationRecords
+}
+
+func step9GetRegUniqueData(records []models.CsvRecord) *models.UniqueDataHolder {
+	log.Debug().Msgf("Step 9. Get all unique fields to simplify creation of DB records")
+	mapDepartment := make(map[dbmodel.Department]int, 1000)
+	mapOperation := make(map[dbmodel.Operation]int, 300)
+	mapBrand := make(map[dbmodel.Brand]int, 4000)
+	mapModel := make(map[dbmodel.Model]int, 41000)
+	mapBodyType := make(map[dbmodel.BodyType]int, 400)
+	mapFuelType := make(map[dbmodel.FuelType]int, 15)
+	mapColor := make(map[dbmodel.Color]int, 12)
+	mapKind := make(map[dbmodel.Kind]int, 13)
+
+	for _, record := range records {
+		modelDepartment := dbmodel.Department{
+			Code: record.DepartmentCode,
+			Name: record.DepartmentName,
+		}
+		modelOperation := dbmodel.Operation{
+			Code: record.OperationCode,
+			Name: record.OperationName,
+		}
+		modelBrand := dbmodel.Brand{
+			BrandId: 0,
+			Name:    record.Brand,
+		}
+		modelModel := dbmodel.Model{
+			ModelId: 0,
+			Name:    record.Model,
+		}
+		modelBodyType := dbmodel.BodyType{
+			BodyTypeId:   0,
+			BodyTypeName: record.Body,
+		}
+		modelFuelType := dbmodel.FuelType{
+			FuelTypeId:   0,
+			FuelTypeName: record.Fuel,
+		}
+		modelColor := dbmodel.Color{
+			ColorId: 0,
+			Name:    record.Color,
+		}
+		modelKind := dbmodel.Kind{
+			KindId:   0,
+			KindName: record.Kind,
+		}
+		mapDepartment[modelDepartment] += 0
+		mapOperation[modelOperation] += 0
+		mapBrand[modelBrand] += 0
+		mapModel[modelModel] += 0
+		mapBodyType[modelBodyType] += 0
+		mapFuelType[modelFuelType] += 0
+		mapColor[modelColor] += 0
+		mapKind[modelKind] += 0
+	}
+
+	holder := models.UniqueDataHolder{
+		MapDepartment: mapDepartment,
+		MapOperation:  mapOperation,
+		MapBrand:      mapBrand,
+		MapModel:      mapModel,
+		MapBodyType:   mapBodyType,
+		MapFuelType:   mapFuelType,
+		MapColor:      mapColor,
+		MapKind:       mapKind,
+	}
+	return &holder
+
 }
