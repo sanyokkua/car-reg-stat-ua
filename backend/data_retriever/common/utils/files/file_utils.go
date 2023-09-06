@@ -1,11 +1,11 @@
-package utils
+package files
 
 import (
     "archive/zip"
-    "data_retriever/constants"
-    "data_retriever/models"
-    "encoding/json"
+    "data_retriever/common/constants"
+    "data_retriever/common/utils"
     "errors"
+    "fmt"
     "github.com/rs/zerolog/log"
     "io"
     "os"
@@ -25,13 +25,24 @@ func IsFileExist(path string) bool {
     return false
 }
 
-func CloseFunc(closableItem io.Closer) {
-    // Helper function for defer keyword with logging of error if any happens
-    err := closableItem.Close()
-    if err != nil {
-        log.Error().Err(err).Msg("Failed to close closableItem")
+func IsExistingCsvFile(csvFilePath string) error {
+    if csvFilePath == "" {
+        return errors.New("file path is blank")
     }
+
+    ext := path.Ext(csvFilePath)
+    if ext != constants.CSV_FILE_EXTENSION {
+        errMsg := fmt.Sprintf("extension of the file is not correct. Expected %s, Actual: %s", constants.CSV_FILE_EXTENSION, ext)
+        return errors.New(errMsg)
+    }
+
+    if !IsFileExist(csvFilePath) {
+        return errors.New("file is not exist")
+    }
+
+    return nil
 }
+
 func CreateFolder(path string) error {
     log.Debug().Msgf("Folder by path: %s will be created", path)
 
@@ -80,50 +91,6 @@ func DeleteFolder(path string) error {
     return nil
 }
 
-func ParseJsonFile(path string) (*models.DataPackage, error) {
-    log.Debug().Msgf("ParseJsonFile Path: %s", path)
-
-    if !IsFileExist(path) {
-        return nil, errors.New("file can't be opened because it doesn't exist")
-    }
-
-    // Read the file content
-    data, readErr := os.ReadFile(path)
-    if readErr != nil {
-        log.Error().Err(readErr).Msg("Error happened during reading file content")
-        return nil, readErr
-    }
-
-    // Declare a variable of type DataPackage for parsing json
-    var dataPackage models.DataPackage
-
-    // Unmarshal the JSON data into the dataPackage variable
-    unmarshalErr := json.Unmarshal(data, &dataPackage)
-    if unmarshalErr != nil {
-        log.Error().Err(unmarshalErr).Msg("Error happened during parsing json file")
-        return nil, unmarshalErr
-    }
-
-    log.Debug().Msgf("Parsed DataPackage json")
-
-    return &dataPackage, nil
-}
-
-func FindUrlsOfCSVFiles(dataPackage *models.DataPackage) ([]string, error) {
-    if dataPackage == nil || dataPackage.Resources == nil || len(dataPackage.Resources) == 0 {
-        return nil, errors.New("dataPackage resources are empty")
-    }
-
-    urls := make([]string, 0, len(dataPackage.Resources))
-
-    for i, resource := range dataPackage.Resources {
-        log.Debug().Msgf("Link %d -- %s", i, resource.Path)
-        urls = append(urls, resource.Path)
-    }
-
-    return urls, nil
-}
-
 func ExtractFiles(archivePath string, destinationDirPath string) ([]string, error) {
     log.Debug().Msgf("Archive path: %s, destinationFolder path: %s", archivePath, destinationDirPath)
 
@@ -142,7 +109,7 @@ func ExtractFiles(archivePath string, destinationDirPath string) ([]string, erro
         log.Error().Err(readErr).Msgf("Failed to open reader for archive file: %s", archivePath)
         return nil, readErr
     }
-    defer CloseFunc(archiveFileReader)
+    defer utils.CloseFunc(archiveFileReader)
 
     // Now all files from archive should be extracted to the destination folder
     filePaths := make([]string, 0, len(archiveFileReader.File))
@@ -183,7 +150,7 @@ func extractFile(destinationDirPath string, fileFromArchive *zip.File) (string, 
         log.Error().Err(openErr).Msg("Error during opening fileFromArchive")
         return "", openErr
     }
-    defer CloseFunc(fileFromArchiveReader)
+    defer utils.CloseFunc(fileFromArchiveReader)
 
     // Create destination file where data will be extracted
     extractedFile, extractedFileCreationErr := os.Create(extractionFilePath)
@@ -191,7 +158,7 @@ func extractFile(destinationDirPath string, fileFromArchive *zip.File) (string, 
         log.Error().Err(extractedFileCreationErr).Msg("Failed to create fileFromArchive")
         return "", extractedFileCreationErr
     }
-    defer CloseFunc(extractedFile)
+    defer utils.CloseFunc(extractedFile)
 
     // Cope data from file in zip archive to destination file in filesystem
     _, copyErr := io.Copy(extractedFile, fileFromArchiveReader)
@@ -207,7 +174,7 @@ func fixCsvFileName(ext string, name string) string {
     // Sometime happens that packed CSV file has incorrect symbols in extension and here is required to replace it
     hasFirst2Symbols := strings.Contains(ext, "cs")
     hasLast2Symbols := strings.Contains(ext, "sv")
-    hasFirstAndLastSymbols := strings.Contains(ext, "s") && strings.Contains(ext, "v")
+    hasFirstAndLastSymbols := ext[1] == 'c' && ext[3] == 'v'
 
     if hasFirst2Symbols || hasLast2Symbols || hasFirstAndLastSymbols {
         name = strings.ToValidUTF8(name, "")

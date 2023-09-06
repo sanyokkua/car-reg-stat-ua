@@ -1,13 +1,12 @@
-package utils
+package csv
 
 import (
-    "data_retriever/constants"
-    "data_retriever/models"
-    "encoding/csv"
+    "data_retriever/common/utils/files"
+    "data_retriever/data_sources/registrations/constants"
+    "data_retriever/data_sources/registrations/models"
     "errors"
     "fmt"
     "github.com/rs/zerolog/log"
-    "os"
     "path"
     "strconv"
     "strings"
@@ -24,7 +23,7 @@ func validatePath(csvFilePath string) error {
         return errors.New(errMsg)
     }
 
-    if !IsFileExist(csvFilePath) {
+    if !files.IsFileExist(csvFilePath) {
         return errors.New("file is not exist")
     }
 
@@ -33,8 +32,9 @@ func validatePath(csvFilePath string) error {
 
 func stringToInt(value string) int {
     // Some csv files has lowercase values, to simplify processing is better to make everything in Uppercase
-    value = strings.ToUpper(value)
-    if value == "" || value == "NULL" || value == "NONE" {
+    value = fixNullableString(value)
+
+    if len(value) == 0 || value == "NULL" || value == "NONE" {
         // Possible expected values, better to check than parse
         return 0
     }
@@ -51,6 +51,12 @@ func stringToInt(value string) int {
         value = strings.TrimSpace(splitValue[0])
     }
 
+    if strings.HasPrefix(value, "-") {
+        // By specifics of processed data there can't be any numbers below zero
+        value = strings.ReplaceAll(value, "-", "")
+        value = strings.TrimSpace(value)
+    }
+
     parsedInt, err := strconv.Atoi(value)
 
     if err != nil {
@@ -62,8 +68,34 @@ func stringToInt(value string) int {
 }
 
 func fixString(value string) string {
+    if strings.Contains(value, "/") {
+        value = strings.ReplaceAll(value, "/", "")
+    }
+    if strings.HasPrefix(value, "-") {
+        // By specifics of processed data there can't be strings that starts from -
+        value = strings.Replace(value, "-", "", 1)
+        value = strings.TrimSpace(value)
+    }
+    if strings.HasPrefix(value, ".") {
+        // By specifics of processed data there can't be strings that starts from '.'
+        value = strings.Replace(value, ".", "", 1)
+        value = strings.TrimSpace(value)
+    }
+    if strings.HasPrefix(value, ",") {
+        // By specifics of processed data there can't be strings that starts from ','
+        value = strings.Replace(value, ",", "", 1)
+        value = strings.TrimSpace(value)
+    }
     newValue := strings.ToUpper(value)
     return strings.TrimSpace(newValue)
+}
+
+func fixNullableString(value string) string {
+    newValue := fixString(value)
+    if newValue == "" || newValue == "NONE" || newValue == "NULL" || newValue == "." {
+        newValue = ""
+    }
+    return newValue
 }
 
 func fixOperationName(opName string, opCode string) string {
@@ -87,9 +119,9 @@ func fixNameThatHasCode(name string, code string) string {
     return fixString(name)
 }
 
-func convertMapToStruct(dataObject map[string]string) models.CsvRecord {
+func convertMapToStruct(dataObject map[string]string) *models.CsvRecord {
     person := fixString(dataObject[constants.PERSON])                                                         // String
-    koatuu := fixString(dataObject[constants.REGISTRATION_ADDRESS_KOATUU])                                    // Nullable
+    koatuu := fixNullableString(dataObject[constants.REGISTRATION_ADDRESS_KOATUU])                            // Nullable
     opCode := stringToInt(dataObject[constants.OPERATION_CODE])                                               // Number
     opName := fixOperationName(dataObject[constants.OPERATION_NAME], dataObject[constants.OPERATION_CODE])    // Can contain opCode "code - XXXXX"
     dateRegistration := fixString(dataObject[constants.DATE_REGISTRATION])                                    // String, Date
@@ -102,14 +134,18 @@ func convertMapToStruct(dataObject map[string]string) models.CsvRecord {
     kind := fixString(dataObject[constants.KIND])                                                             // String
     body := fixString(dataObject[constants.BODY])                                                             // String
     purpose := fixString(dataObject[constants.PURPOSE])                                                       // String
-    fuel := fixString(dataObject[constants.FUEL])                                                             // String, Nullable
-    capacity := stringToInt(dataObject[constants.CAPACITY])                                                   // Number, Nullable
-    weight := stringToInt(dataObject[constants.OWN_WEIGHT])                                                   // Number, Nullable
-    totalWeight := stringToInt(dataObject[constants.TOTAL_WEIGHT])                                            // Number, Nullable
-    registrationNew := fixString(dataObject[constants.NUMBER_REGISTRATION_NEW])                               // String, Nullable
-    vin := fixString(dataObject[constants.VIN])                                                               // String, Nullable
 
-    return models.CsvRecord{
+    fuelValue := dataObject[constants.FUEL]
+    fixedFuelValue := fixNullableString(fuelValue)
+    fuel := constants.GetFuelMapping(fixedFuelValue)
+
+    capacity := stringToInt(dataObject[constants.CAPACITY])                             // Number, Nullable
+    weight := stringToInt(dataObject[constants.OWN_WEIGHT])                             // Number, Nullable
+    totalWeight := stringToInt(dataObject[constants.TOTAL_WEIGHT])                      // Number, Nullable
+    registrationNew := fixNullableString(dataObject[constants.NUMBER_REGISTRATION_NEW]) // String, Nullable
+    vin := fixNullableString(dataObject[constants.VIN])                                 // String, Nullable
+
+    return &models.CsvRecord{
         DepartmentName:            department,
         DepartmentCode:            departmentCode,
         OperationName:             opName,
@@ -131,59 +167,4 @@ func convertMapToStruct(dataObject map[string]string) models.CsvRecord {
         NumberRegistrationNew:     registrationNew,
         Vin:                       vin,
     }
-}
-
-func ParseRegistrationsCsvToRecordsArray(csvFilePath string) ([]models.CsvRecord, error) {
-    // Check preconditions before opening file
-    validationErr := validatePath(csvFilePath)
-    if validationErr != nil {
-        return nil, validationErr
-    }
-
-    // Open CSV file for further processing
-    openedCsvFile, openFileErr := os.Open(csvFilePath)
-    if openFileErr != nil {
-        log.Error().Err(openFileErr).Msgf("Failed to open %s", csvFilePath)
-        return nil, openFileErr
-    }
-    defer CloseFunc(openedCsvFile)
-
-    // Create a new CSV csvFileReader and configure delimiter of csvFileRecords
-    csvFileReader := csv.NewReader(openedCsvFile)
-    csvFileReader.Comma = ';'
-
-    // Read all the csvFileRecords to memory
-    csvFileRecords, readErr := csvFileReader.ReadAll()
-    if readErr != nil {
-        log.Error().Err(readErr).Msg("Failed to read CSV file")
-        return nil, readErr
-    }
-
-    // Prepare containers for keeping records
-    csvRecordMap := make(map[string]string)
-    mappedRecords := make([]models.CsvRecord, 0, len(csvFileRecords)-1) // -1 because first line is headers line
-    headerLine := csvFileRecords[0]
-    for i := range headerLine {
-        // Headers can be lowercase in old csv files, so we need to make them all in one format
-        headerLine[i] = strings.ToUpper(headerLine[i])
-    }
-
-    // Map all records from CSV file to models.CsvRecord
-    for i, record := range csvFileRecords {
-        if i == 0 {
-            // Skip first header line
-            continue
-        }
-
-        for index, value := range record {
-            csvRecordMap[headerLine[index]] = value
-        }
-
-        mappedRecord := convertMapToStruct(csvRecordMap)
-        mappedRecords = append(mappedRecords, mappedRecord)
-    }
-
-    log.Debug().Msgf("Number of csvFileRecords in the %s: %d", csvFilePath, len(mappedRecords))
-
-    return mappedRecords, nil
 }

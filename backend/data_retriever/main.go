@@ -22,7 +22,7 @@ func main() {
         }
     }
 
-    err := app.ProcessRegistrationData(cleanRun)
+    err := app.ProcessApplicationData(cleanRun)
     if err != nil {
         log.Error().Err(err).Msg("Application failed to process Registration Data")
         panic(err)

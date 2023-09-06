@@ -25,29 +25,14 @@ type BodyType struct {
     BodyTypeName string
 }
 
-type FuelType struct {
-    FuelTypeId   int
-    FuelTypeName string
-}
-
-type Color struct {
-    ColorId int
-    Name    string
-}
-
-type Kind struct {
-    KindId   int
-    KindName string
-}
-
 type Vehicle struct {
     VehicleId      int
-    Kind           Kind
+    Kind           string
     Brand          Brand
     Model          Model
     BodyType       BodyType
-    FuelType       FuelType
-    Color          Color
+    FuelType       string // "",".","НЕ ВИЗНАЧЕНО","NULL","ВІДСУТНЄ"
+    Color          string
     MakeYear       int
     EngineCapacity int
     OwnWeight      int
@@ -56,7 +41,7 @@ type Vehicle struct {
 
 type Registration struct {
     PersonType            string
-    RegistrationCityCode  string
+    RegistrationCityCode  string // "","NULL"
     Department            Department
     Operation             Operation
     DateRegistration      string

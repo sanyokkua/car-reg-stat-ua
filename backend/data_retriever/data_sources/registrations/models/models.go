@@ -1,7 +1,5 @@
 package models
 
-import dbmodel "data_retriever/db/models"
-
 type Contributor struct {
     Role  string `json:"role"`
     Email string `json:"email"`
@@ -23,7 +21,7 @@ type Resource struct {
     Path     string `json:"path"`
 }
 
-type DataPackage struct {
+type DataPackageJson struct {
     Profile      string        `json:"profile"`
     Name         string        `json:"name"`
     Contributors []Contributor `json:"contributors"`
@@ -59,15 +57,4 @@ type CsvRecord struct {
     Purpose                   string // "PURPOSE"   -- String
     NumberRegistrationNew     string // "N_REG_NEW" -- String, Nullable
     Vin                       string // "VIN"   -- String, Nullable
-}
-
-type UniqueDataHolder struct {
-    MapDepartment map[dbmodel.Department]int
-    MapOperation  map[dbmodel.Operation]int
-    MapBrand      map[dbmodel.Brand]int
-    MapModel      map[dbmodel.Model]int
-    MapBodyType   map[dbmodel.BodyType]int
-    MapFuelType   map[dbmodel.FuelType]int
-    MapColor      map[dbmodel.Color]int
-    MapKind       map[dbmodel.Kind]int
 }

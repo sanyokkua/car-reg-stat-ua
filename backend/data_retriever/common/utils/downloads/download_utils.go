@@ -1,6 +1,8 @@
-package utils
+package downloads
 
 import (
+    "data_retriever/common/utils"
+    "data_retriever/common/utils/files"
     "errors"
     "github.com/rs/zerolog/log"
     "io"
@@ -9,9 +11,9 @@ import (
     "path"
 )
 
-func Download(targetDirectory string, fileUrl string) (string, error) {
+func DownloadFile(targetDirectory string, fileUrl string) (string, error) {
     // Prepare temporary folder and targetFile for downloading
-    log.Debug().Msgf("Download with params: targetDirectory=%s, fileUrl=%s", targetDirectory, fileUrl)
+    log.Debug().Msgf("DownloadFile with params: targetDirectory=%s, fileUrl=%s", targetDirectory, fileUrl)
 
     fileName := path.Base(fileUrl)
     log.Debug().Msgf("FileName is: %s", fileName)
@@ -20,7 +22,7 @@ func Download(targetDirectory string, fileUrl string) (string, error) {
     log.Debug().Msgf("FilePath is: %s", filePath)
 
     // Check if file already exist to not spam the server
-    if IsFileExist(filePath) {
+    if files.IsFileExist(filePath) {
         log.Debug().Msgf("File '%s' exists, returning path to this targetFile", filePath)
         return filePath, nil
     }
@@ -31,15 +33,15 @@ func Download(targetDirectory string, fileUrl string) (string, error) {
         log.Error().Err(creationErr).Msg("Error happened during creation a targetFile")
         return "", creationErr
     }
-    defer CloseFunc(targetFile)
+    defer utils.CloseFunc(targetFile)
 
-    // Download the targetFile
+    // DownloadFile the targetFile
     resp, downloadErr := http.Get(fileUrl)
     if downloadErr != nil {
         log.Error().Err(downloadErr).Msgf("Error happened during downloading %s", fileUrl)
         return "", downloadErr
     }
-    defer CloseFunc(resp.Body)
+    defer utils.CloseFunc(resp.Body)
 
     // Copy the downloaded data to the local targetFile
     numberOfBytes, copyErr := io.Copy(targetFile, resp.Body)
@@ -54,7 +56,7 @@ func Download(targetDirectory string, fileUrl string) (string, error) {
     return filePath, nil
 }
 
-func DownloadFilesToFolder(targetDirectory string, urls []string) ([]string, error) {
+func DownloadFiles(targetDirectory string, urls []string) ([]string, error) {
     if urls == nil || len(urls) == 0 {
         return nil, errors.New("no urls for downloading")
     }
@@ -63,7 +65,7 @@ func DownloadFilesToFolder(targetDirectory string, urls []string) ([]string, err
 
     downloadedFiles := make([]string, 0, len(urls))
     for _, url := range urls {
-        filePath, err := Download(targetDirectory, url)
+        filePath, err := DownloadFile(targetDirectory, url)
         if err != nil {
             return nil, err
         }
