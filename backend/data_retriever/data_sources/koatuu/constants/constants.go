@@ -7,28 +7,28 @@ import "strings"
 // From 2020.07.17 this standard is outdated and shouldn't receive any changes, but still is used in many places
 // Valid data on 2023.09.06
 
-const KOATUU_FILE_NAME = "KOATUU.csv"
-const KEY_KOATUU_LEVEL_1 = "ПЕРШИЙ РІВЕНЬ"
-const KEY_KOATUU_LEVEL_2 = "ДРУГИЙ РІВЕНЬ"
-const KEY_KOATUU_LEVEL_3 = "ТРЕТІЙ РІВЕНЬ"
-const KEY_KOATUU_LEVEL_4 = "ЧЕТВЕРТИЙ РІВЕНЬ"
-const KEY_KOATUU_CATEGORY = "КАТЕГОРІЯ"
-const KEY_KOATUU_NAME = "НАЗВА ОБ'ЄКТА УКРАЇНСЬКОЮ МОВОЮ"
+const KoatuuFileName = "KOATUU.csv"
+const KeyKoatuuLevel1 = "ПЕРШИЙ РІВЕНЬ"
+const KeyKoatuuLevel2 = "ДРУГИЙ РІВЕНЬ"
+const KeyKoatuuLevel3 = "ТРЕТІЙ РІВЕНЬ"
+const KeyKoatuuLevel4 = "ЧЕТВЕРТИЙ РІВЕНЬ"
+const KeyKoatuuCategory = "КАТЕГОРІЯ"
+const KeyKoatuuName = "НАЗВА ОБ'ЄКТА УКРАЇНСЬКОЮ МОВОЮ"
 
 func GetAdministrativeUnitType(value string) string {
-    mapping := map[string]string{
-        "М": "Місто",
-        "Р": "Район",
-        "С": "Село",
-        "Т": "Селище міського типу",
-        "Щ": "Селище",
-        "":  "",
-    }
-    trimmedValue := strings.TrimSpace(value)
-    upperCase := strings.ToUpper(trimmedValue)
-    newMappedValue, found := mapping[upperCase]
-    if found {
-        return newMappedValue
-    }
-    return ""
+	mapping := map[string]string{
+		"М": "Місто",
+		"Р": "Район",
+		"С": "Село",
+		"Т": "Селище міського типу",
+		"Щ": "Селище",
+		"":  "",
+	}
+	trimmedValue := strings.TrimSpace(value)
+	upperCase := strings.ToUpper(trimmedValue)
+	newMappedValue, found := mapping[upperCase]
+	if found {
+		return newMappedValue
+	}
+	return ""
 }
